@@ -1,0 +1,51 @@
+name: Release
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: release
+  cancel-in-progress: false
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Compute release tag
+        id: tag
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          date_part="$(date -u +%F)"
+          n=1
+          tags="$(gh release list --limit 100 --json tagName --jq '.[].tagName' || true)"
+          while grep -qx "${date_part}_v${n}" <<< "$tags"; do
+            n=$((n + 1))
+          done
+          echo "tag=${date_part}_v${n}" >> "$GITHUB_OUTPUT"
+
+      - name: Build zip
+        env:
+          TAG: ${{ steps.tag.outputs.tag }}
+        run: |
+          set -euo pipefail
+          mkdir -p dist
+          zip "dist/${TAG}.zip" *.json
+          ls -lh dist
+
+      - name: Create release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TAG: ${{ steps.tag.outputs.tag }}
+        run: |
+          gh release create "$TAG" "dist/${TAG}.zip" \
+            --repo "$GITHUB_REPOSITORY" \
+            --title "$TAG" \
+            --generate-notes
