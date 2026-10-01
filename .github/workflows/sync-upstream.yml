@@ -25,4 +25,4 @@ jobs:
       - name: Trigger release workflow
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: gh workflow run release.yml
+        run: gh workflow run release.yml --repo dave-89/wh40k-11e
